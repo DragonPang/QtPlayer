@@ -1,0 +1,12 @@
+<RCC>
+    <qresource prefix="/">
+        <file>image/forward.ico</file>
+        <file>image/MOVIE.png</file>
+        <file>image/MUSIC.jpg</file>
+        <file>image/next.ico</file>
+        <file>image/pause.ico</file>
+        <file>image/play.ico</file>
+        <file>image/player.ico</file>
+        <file>image/stop.ico</file>
+    </qresource>
+</RCC>
