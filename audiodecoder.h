@@ -3,6 +3,11 @@
 
 #include <QObject>
 
+extern "C"
+{
+#include "libswresample/swresample.h"
+}
+
 #include "avpacketqueue.h"
 
 class AudioDecoder : public QObject

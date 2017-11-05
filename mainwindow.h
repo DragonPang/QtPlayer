@@ -49,21 +49,21 @@ private:
     Ui::MainWindow *ui;
 
     Decoder *decoder;
-    QList<QString> playList;
+    QList<QString> playList;    // list to stroe video files in same path
 
-    QString currentPlay;
+    QString currentPlay;        // current playing video file path
     QString currentPlayType;
 
     QImage image;
-    QTimer *menuTimer;
-    QTimer *progressTimer;
+    QTimer *menuTimer;      // menu hide timer
+    QTimer *progressTimer;  // check play progress timer
 
-    bool menuIsVisible;
-    bool isKeepAspectRatio;
+    bool menuIsVisible;     // switch to control show/hide menu
+    bool isKeepAspectRatio; // switch to control image scale whether keep aspect ratio
 
-    bool autoPlay;
-    bool closeNotExit;
-    bool updateUI;
+    bool autoPlay;          // switch to control whether to continue to playing other file
+    bool loopPlay;          // switch to control whether to continue to playing same file
+    bool closeNotExit;      // switch to control click exit button not exit but hide
 
     Decoder::PlayState playState;
 
@@ -87,6 +87,8 @@ private slots:
     void setFullScreen();
     void setKeepRatio();
     void setAutoPlay();
+    void setLoopPlay();
+    void saveCurrentFrame();
 
 signals:
     void selectedVideoFile(QString file, QString type);

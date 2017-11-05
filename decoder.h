@@ -4,6 +4,19 @@
 #include <QThread>
 #include <QImage>
 
+extern "C"
+{
+#include "libavfilter/avfiltergraph.h"
+#include "libavfilter/buffersink.h"
+#include "libavfilter/buffersrc.h"
+#include "libswscale/swscale.h"
+#include "libavdevice/avdevice.h"
+#include "libavutil/pixfmt.h"
+#include "libavutil/opt.h"
+#include "libavcodec/avfft.h"
+#include "libavutil/imgutils.h"
+}
+
 #include "audiodecoder.h"
 #include "videodecoder.h"
 
@@ -35,6 +48,7 @@ private:
     static int videoThread(void *arg);
     double synchronize(AVFrame *frame, double pts);
     bool isRealtime(AVFormatContext *pFormatCtx);
+    int initFilter();
 
     int fileType;
 
@@ -55,17 +69,22 @@ private:
     bool isReadFinished;
     bool isDecodeFinished;
 
-    struct SwsContext *imgCovertCtx;
+    AVFormatContext *pFormatCtx;
 
     AVCodecContext *pCodecCtx;          // video codec context
 
     AvPacketQueue videoQueue;
+    AvPacketQueue subtitleQueue;
 
     AVStream *videoStream;
 
     double videoClk;    // video frame timestamp
 
     AudioDecoder *audioDecoder;
+
+    AVFilterGraph   *filterGraph;
+    AVFilterContext *filterSinkCxt;
+    AVFilterContext *filterSrcCxt;
 
 public slots:
     void decoderFile(QString file, QString type);

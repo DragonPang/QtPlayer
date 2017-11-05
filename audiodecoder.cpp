@@ -16,7 +16,7 @@ AudioDecoder::AudioDecoder(QObject *parent) :
     clock(0),
     volume(SDL_MIX_MAXVOLUME),
     audioDeviceFormat(AUDIO_F32SYS),
-    aCovertCtx(nullptr)
+    aCovertCtx(NULL)
 {
 
 }
@@ -35,6 +35,17 @@ int AudioDecoder::openAudio(AVFormatContext *pFormatCtx, int index)
 
     isStop = false;
     isPause = false;
+    isreadFinished = false;
+
+    audioSrcFmt = AV_SAMPLE_FMT_NONE;
+    audioSrcChannelLayout = 0;
+    audioSrcFreq = 0;
+
+    audioBufIndex = 0;
+    audioBufSize = 0;
+    audioBufSize1 = 0;
+
+    clock = 0;
 
     pFormatCtx->streams[index]->discard = AVDISCARD_DEFAULT;
 
@@ -162,20 +173,6 @@ int AudioDecoder::openAudio(AVFormatContext *pFormatCtx, int index)
 
 void AudioDecoder::closeAudio()
 {
-    isStop = false;
-    isPause = false;
-    isreadFinished = false;
-
-    audioSrcFmt = AV_SAMPLE_FMT_NONE;
-    audioSrcChannelLayout = 0;
-    audioSrcFreq = 0;
-
-    audioBufIndex = 0;
-    audioBufSize = 0;
-    audioBufSize1 = 0;
-
-    clock = 0;
-
     emptyQueue();
 
     SDL_LockAudio();
@@ -346,6 +343,7 @@ int AudioDecoder::decodeAudio()
 
     if (frame->pts != AV_NOPTS_VALUE) {
         clock = av_q2d(stream->time_base) * frame->pts;
+//        qDebug() << "no pts";
     }
 
     /* get audio channels */
@@ -362,7 +360,7 @@ int AudioDecoder::decodeAudio()
 
         /* init swr audio convert context */
         aCovertCtx = swr_alloc_set_opts(nullptr, audioDstChannelLayout, audioDstFmt, spec.freq,
-                inChannelLayout, (AVSampleFormat)frame->format , frame->sample_rate, 0, nullptr);
+                inChannelLayout, (AVSampleFormat)frame->format , frame->sample_rate, 0, NULL);
         if (!aCovertCtx || (swr_init(aCovertCtx) < 0)) {
             av_packet_unref(&packet);
             av_frame_free(&frame);
