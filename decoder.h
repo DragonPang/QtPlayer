@@ -52,6 +52,10 @@ private:
 
     int fileType;
 
+    int videoIndex;
+    int audioIndex;
+    int subtitleIndex;
+
     QString currentFile;
     QString currentType;
 

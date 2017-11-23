@@ -16,7 +16,8 @@ AudioDecoder::AudioDecoder(QObject *parent) :
     clock(0),
     volume(SDL_MIX_MAXVOLUME),
     audioDeviceFormat(AUDIO_F32SYS),
-    aCovertCtx(NULL)
+    aCovertCtx(NULL),
+    sendReturn(0)
 {
 
 }
@@ -146,22 +147,27 @@ int AudioDecoder::openAudio(AVFormatContext *pFormatCtx, int index)
     switch (audioDeviceFormat) {
     case AUDIO_U8:
         audioDstFmt    = AV_SAMPLE_FMT_U8;
+        audioDepth = 1;
         break;
 
     case AUDIO_S16SYS:
         audioDstFmt    = AV_SAMPLE_FMT_S16;
+        audioDepth = 2;
         break;
 
     case AUDIO_S32SYS:
         audioDstFmt    = AV_SAMPLE_FMT_S32;
+        audioDepth = 4;
         break;
 
     case AUDIO_F32SYS:
         audioDstFmt    = AV_SAMPLE_FMT_FLT;
+        audioDepth = 4;
         break;
 
     default:
         audioDstFmt    = AV_SAMPLE_FMT_S16;
+        audioDepth = 2;
         break;
     }
 
@@ -220,18 +226,15 @@ void AudioDecoder::setVolume(int volume)
 
 double AudioDecoder::getAudioClock()
 {
-    double pts;
-
     if (codecCtx) {
+        /* control audio pts according to audio buffer data size */
         int hwBufSize   = audioBufSize - audioBufIndex;
-        int bytesPerSec = codecCtx->sample_rate * codecCtx->channels * 2;
+        int bytesPerSec = codecCtx->sample_rate * codecCtx->channels * audioDepth;
 
-        pts = clock - static_cast<double>(hwBufSize) / bytesPerSec;
-    } else {
-        pts = clock;
+        clock -= static_cast<double>(hwBufSize) / bytesPerSec;
     }
 
-    return pts;
+    return clock;
 }
 
 void AudioDecoder::audioCallback(void *userdata, quint8 *stream, int SDL_AudioBufSize)
@@ -398,10 +401,10 @@ int AudioDecoder::decodeAudio()
         resampledDataSize = sampleSize * spec.channels * av_get_bytes_per_sample(audioDstFmt);
     } else {
         audioBuf = frame->data[0];
-        resampledDataSize = av_samples_get_buffer_size(NULL, frame->channels, frame->nb_samples, (AVSampleFormat)frame->format, 1);
+        resampledDataSize = av_samples_get_buffer_size(NULL, frame->channels, frame->nb_samples, static_cast<AVSampleFormat>(frame->format), 1);
     }
 
-    clock += static_cast<double>(resampledDataSize) / (2 * codecCtx->channels * codecCtx->sample_rate);
+    clock += static_cast<double>(resampledDataSize) / (audioDepth * codecCtx->channels * codecCtx->sample_rate);
 
     if (sendReturn != AVERROR(EAGAIN)) {
         av_packet_unref(&packet);

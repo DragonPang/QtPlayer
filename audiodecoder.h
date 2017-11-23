@@ -50,6 +50,7 @@ private:
     SDL_AudioSpec spec;
 
     quint32 audioDeviceFormat;  // audio device sample format
+    quint8 audioDepth;
     struct SwrContext *aCovertCtx;
     qint64 audioDstChannelLayout;
     enum AVSampleFormat audioDstFmt;   // audio decode sample format

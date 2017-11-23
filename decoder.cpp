@@ -3,6 +3,7 @@
 #include "decoder.h"
 
 Decoder::Decoder() :
+    timeTotal(0),
     playState(STOP),
     isStop(false),
     isPause(false),
@@ -30,6 +31,12 @@ void Decoder::displayVideo(QImage image)
 
 void Decoder::clearData()
 {
+    videoIndex = -1,
+    audioIndex = -1,
+    subtitleIndex = -1,
+
+    timeTotal = 0;
+
     isStop  = false;
     isPause = false;
     isSeek  = false;
@@ -159,7 +166,7 @@ out:
 void Decoder::decoderFile(QString file, QString type)
 {
 //    qDebug() << "Current state:" << playState;
-    qDebug() << "File name: " << file << ", type: " << type;
+    qDebug() << "File name:" << file << ", type:" << type;
     if (playState != STOP) {
         isStop = true;
         while (playState != STOP) {
@@ -236,7 +243,11 @@ void Decoder::setVolume(int volume)
 
 double Decoder::getCurrentTime()
 {
-    return audioDecoder->getAudioClock();
+    if (audioIndex >= 0) {
+        return audioDecoder->getAudioClock();
+    }
+
+    return 0;
 }
 
 void Decoder::seekProgress(qint64 pos)
@@ -271,7 +282,7 @@ int Decoder::videoThread(void *arg)
     double pts;
     AVPacket packet;
     Decoder *decoder = (Decoder *)arg;
-    AVFrame *pFrame     = av_frame_alloc();
+    AVFrame *pFrame  = av_frame_alloc();
 
     while (true) {
         if (decoder->isStop) {
@@ -325,22 +336,24 @@ int Decoder::videoThread(void *arg)
         pts *= av_q2d(decoder->videoStream->time_base);
         pts =  decoder->synchronize(pFrame, pts);
 
-        while (1) {
-            if (decoder->isStop) {
-                break;
+        if (decoder->audioIndex >= 0) {
+            while (1) {
+                if (decoder->isStop) {
+                    break;
+                }
+
+                double audioClk = decoder->audioDecoder->getAudioClock();
+                pts = decoder->videoClk;
+
+                if (pts <= audioClk) {
+                     break;
+                }
+                int delayTime = (pts - audioClk) * 1000;
+
+                delayTime = delayTime > 5 ? 5 : delayTime;
+
+                SDL_Delay(delayTime);
             }
-
-            double audioClk = decoder->audioDecoder->getAudioClock();
-            pts = decoder->videoClk;
-
-            if (pts <= audioClk) {
-                 break;
-            }
-            int delayTime = (pts - audioClk) * 1000;
-
-            delayTime = delayTime > 5 ? 5 : delayTime;
-
-            SDL_Delay(delayTime);
         }
 
         if (av_buffersrc_add_frame(decoder->filterSrcCxt, pFrame) < 0) {
@@ -370,6 +383,8 @@ int Decoder::videoThread(void *arg)
         decoder->isStop = true;
     }
 
+    qDebug() << "Video decoder finished.";
+
     SDL_Delay(100);
 
     decoder->isDecodeFinished = true;
@@ -380,10 +395,9 @@ int Decoder::videoThread(void *arg)
         decoder->setPlayState(Decoder::FINISH);
     }
 
-    qDebug() << "Video decoder finished.";
-
     return 0;
 }
+
 
 void Decoder::run()
 {
@@ -391,8 +405,8 @@ void Decoder::run()
 
     AVPacket pkt, *packet = &pkt;        // packet use in decoding
 
-    int videoIndex = -1, audioIndex = -1, subtitleIndex = -1;
-    int seekIndex;
+    int seekIndex;  
+    bool realTime;
 
     pFormatCtx = avformat_alloc_context();
 
@@ -407,12 +421,11 @@ void Decoder::run()
         return;
     }
 
-//    qDebug() << "Is real-time: " << isRealtime(pFormatCtx);
+    realTime = isRealtime(pFormatCtx);
 
 //    av_dump_format(pFormatCtx, 0, 0, 0);  // just use in debug output
 
-    /* find video & audio stream index
-     */
+    /* find video & audio stream index */
     for (unsigned int i = 0; i < pFormatCtx->nb_streams; i++) {
         if (pFormatCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
             videoIndex = i;
@@ -431,7 +444,7 @@ void Decoder::run()
     }
 
     if (currentType == "video") {
-        if (videoIndex < 0 || audioIndex < 0) {
+        if (videoIndex < 0) {
             qDebug() << "Not support this video file, videoIndex: " << videoIndex << ", audioIndex: " << audioIndex;
             avformat_free_context(pFormatCtx);
             return;
@@ -444,12 +457,19 @@ void Decoder::run()
         }
     }
 
-    emit gotVideoTime(pFormatCtx->duration);
-    timeTotal = pFormatCtx->duration;
+    if (!realTime) {
+        emit gotVideoTime(pFormatCtx->duration);
+        timeTotal = pFormatCtx->duration;
+    } else {
+        emit gotVideoTime(0);
+    }
+//    qDebug() << timeTotal;
 
-    if (audioDecoder->openAudio(pFormatCtx, audioIndex) < 0) {
-        avformat_free_context(pFormatCtx);
-        return;
+    if (audioIndex >= 0) {
+        if (audioDecoder->openAudio(pFormatCtx, audioIndex) < 0) {
+            avformat_free_context(pFormatCtx);
+            return;
+        }
     }
 
     if (currentType == "video") {
@@ -549,8 +569,9 @@ seek:
         }
     }
 
+//    qDebug() << isStop;
     while (!isStop) {
-        /* use in just audio play */
+        /* just use at audio playing */
         if (isSeek) {
             goto seek;
         }
@@ -560,7 +581,9 @@ seek:
 
 fail:
     /* close audio device */
-    audioDecoder->closeAudio();
+    if (audioIndex >= 0) {
+        audioDecoder->closeAudio();
+    }
 
     if (currentType == "video") {
         avcodec_close(pCodecCtx);
