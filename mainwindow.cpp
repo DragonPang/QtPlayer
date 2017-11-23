@@ -26,7 +26,8 @@ MainWindow::MainWindow(QWidget *parent) :
     progressTimer(new QTimer),
     menuIsVisible(true),
     isKeepAspectRatio(false),
-    autoPlay(false),
+    image(QImage(":/image/MUSIC.jpg")),
+    autoPlay(true),
     loopPlay(false),
     closeNotExit(false),
     playState(Decoder::STOP),
@@ -59,26 +60,27 @@ void MainWindow::initUI()
     this->centralWidget()->setMouseTracking(true);
     this->setMouseTracking(true);
 
-    image = QImage(":/image/MUSIC.jpg");
+
+    ui->titleLable->setAlignment(Qt::AlignCenter);
 
     ui->labelTime->setStyleSheet("background: #5FFFFFFF;");
     ui->labelTime->setText(QString("00.00.00 / 00:00:00"));
 
     ui->btnNext->setIcon(QIcon(":/image/next.ico"));
     ui->btnNext->setIconSize(QSize(48, 48));
-    ui->btnNext->setStyleSheet("background: transparent;");
+    ui->btnNext->setStyleSheet("background: transparent;border:none;");
 
     ui->btnPreview->setIcon(QIcon(":/image/forward.ico"));
     ui->btnPreview->setIconSize(QSize(48, 48));
-    ui->btnPreview->setStyleSheet("background: transparent;");
+    ui->btnPreview->setStyleSheet("background: transparent;border:none;");
 
     ui->btnStop->setIcon(QIcon(":/image/stop.ico"));
     ui->btnStop->setIconSize(QSize(48, 48));
-    ui->btnStop->setStyleSheet("background: transparent;");
+    ui->btnStop->setStyleSheet("background: transparent;border:none;");
 
     ui->btnPause->setIcon(QIcon(":/image/play.ico"));
     ui->btnPause->setIconSize(QSize(48, 48));
-    ui->btnPause->setStyleSheet("background: transparent;");
+    ui->btnPause->setStyleSheet("background: transparent;border:none;");
 
     setHide(ui->btnOpenLocal);
     setHide(ui->btnOpenUrl);
@@ -121,19 +123,20 @@ void MainWindow::initSlot()
     connect(ui->btnPause,       SIGNAL(clicked(bool)), this, SLOT(buttonClickSlot()));
     connect(ui->btnNext,        SIGNAL(clicked(bool)), this, SLOT(buttonClickSlot()));
     connect(ui->btnPreview,     SIGNAL(clicked(bool)), this, SLOT(buttonClickSlot()));
-    connect(ui->lineEdit,       SIGNAL(cursorPositionChanged(int,int)), this, SLOT(editText()));
+    connect(ui->lineEdit,       SIGNAL(cursorPositionChanged(int,int)),     this, SLOT(editText()));
+
     connect(menuTimer,      SIGNAL(timeout()), this, SLOT(timerSlot()));
     connect(progressTimer,  SIGNAL(timeout()), this, SLOT(timerSlot()));
 
     connect(ui->videoProgressSlider,    SIGNAL(sliderMoved(int)), this, SLOT(seekProgress(int)));
 
-    connect(this, SIGNAL(selectedVideoFile(QString,QString)), decoder, SLOT(decoderFile(QString,QString)));
-    connect(this, SIGNAL(stopVideo()), decoder, SLOT(stopVideo()));
-    connect(this, SIGNAL(pauseVideo()), decoder, SLOT(pauseVideo()));
+    connect(this, SIGNAL(selectedVideoFile(QString,QString)),   decoder, SLOT(decoderFile(QString,QString)));
+    connect(this, SIGNAL(stopVideo()),                          decoder, SLOT(stopVideo()));
+    connect(this, SIGNAL(pauseVideo()),                         decoder, SLOT(pauseVideo()));
 
-    connect(decoder, SIGNAL(playStateChanged(Decoder::PlayState)), this, SLOT(playStateChanged(Decoder::PlayState)));
-    connect(decoder, SIGNAL(gotVideo(QImage)), this, SLOT(showVideo(QImage)));
-    connect(decoder, SIGNAL(gotVideoTime(qint64)), this, SLOT(videoTime(qint64)));
+    connect(decoder, SIGNAL(playStateChanged(Decoder::PlayState)),  this, SLOT(playStateChanged(Decoder::PlayState)));
+    connect(decoder, SIGNAL(gotVideoTime(qint64)),                  this, SLOT(videoTime(qint64)));
+    connect(decoder, SIGNAL(gotVideo(QImage)),                      this, SLOT(showVideo(QImage)));
 }
 
 void MainWindow::initTray()
@@ -172,8 +175,9 @@ void MainWindow::paintEvent(QPaintEvent *event)
 
     painter.setRenderHint(QPainter::Antialiasing, true);
 
-    int width  = this->width();
+    int width = this->width();
     int height = this->height();
+
 
     painter.setBrush(Qt::black);
     painter.drawRect(0, 0, width, height);
@@ -218,15 +222,15 @@ void MainWindow::changeEvent(QEvent *event)
     }
 }
 
-bool MainWindow::eventFilter(QObject *obj, QEvent *event)
+bool MainWindow::eventFilter(QObject *object, QEvent *event)
 {
-    if (obj == ui->videoProgressSlider) {
+    if (object == ui->videoProgressSlider) {
         if (event->type() == QEvent::MouseButtonPress) {
             QMouseEvent *mouseEvent = static_cast<QMouseEvent *>(event);
             if (mouseEvent->button() == Qt::LeftButton) {
-                int dur = ui->videoProgressSlider->maximum() - ui->videoProgressSlider->minimum();
-                int pos = ui->videoProgressSlider->minimum() + dur * ((double)mouseEvent->x() / ui->videoProgressSlider->width());
-                if(pos != ui->videoProgressSlider->sliderPosition()) {
+                int duration = ui->videoProgressSlider->maximum() - ui->videoProgressSlider->minimum();
+                int pos = ui->videoProgressSlider->minimum() + duration * (static_cast<double>(mouseEvent->x()) / ui->videoProgressSlider->width());
+                if (pos != ui->videoProgressSlider->sliderPosition()) {
                     ui->videoProgressSlider->setValue(pos);
                     decoder->seekProgress(static_cast<qint64>(pos) * 1000000);
                 }
@@ -234,7 +238,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
         }
     }
 
-    return QObject::eventFilter(obj, event);
+    return QObject::eventFilter(object, event);
 }
 
 void MainWindow::keyReleaseEvent(QKeyEvent *event)
@@ -292,72 +296,21 @@ void MainWindow::mouseMoveEvent(QMouseEvent *event)
     Q_UNUSED(event);
 
     /* stop timer & restart it while having mouse moving */
-    menuTimer->stop();
-    if (!menuIsVisible) {
-        showControl();
-        menuIsVisible = true;
-        QApplication::setOverrideCursor(Qt::ArrowCursor);
+    if (currentPlayType == "video") {
+        menuTimer->stop();
+        if (!menuIsVisible) {
+            showControl(true);
+            menuIsVisible = true;
+            QApplication::setOverrideCursor(Qt::ArrowCursor);
+        }
+        menuTimer->start();
     }
-    menuTimer->start();
 }
 
 void MainWindow::mousePressEvent(QMouseEvent *event)
 {
     if (event->buttons() == Qt::RightButton) {
-        QMenu *menu = new QMenu;
-
-        QAction * fullSrcAction = new QAction("全屏", this);
-        fullSrcAction->setCheckable(true);
-        if (isFullScreen()) {
-            fullSrcAction->setChecked(true);
-        }
-
-        QAction *keepRatioAction = new QAction("视频长宽比", this);
-        keepRatioAction->setCheckable(true);
-        if (isKeepAspectRatio) {
-            keepRatioAction->setChecked(true);
-        }
-
-        QAction *autoPlayAction = new QAction("连续播放", this);
-        autoPlayAction->setCheckable(true);
-        if (autoPlay) {
-            autoPlayAction->setChecked(true);
-        }
-
-        QAction *loopPlayAction = new QAction("循环播放", this);
-        loopPlayAction->setCheckable(true);
-        if (loopPlay) {
-            loopPlayAction->setChecked(true);
-        }
-
-        QAction *captureAction = new QAction("截图", this);
-
-        connect(fullSrcAction,      SIGNAL(triggered(bool)), this, SLOT(setFullScreen()));
-        connect(keepRatioAction,    SIGNAL(triggered(bool)), this, SLOT(setKeepRatio()));
-        connect(autoPlayAction,     SIGNAL(triggered(bool)), this, SLOT(setAutoPlay()));
-        connect(loopPlayAction,     SIGNAL(triggered(bool)), this, SLOT(setLoopPlay()));
-        connect(captureAction,      SIGNAL(triggered(bool)), this, SLOT(saveCurrentFrame()));
-
-        menu->addAction(fullSrcAction);
-        menu->addAction(keepRatioAction);
-        menu->addAction(autoPlayAction);
-        menu->addAction(loopPlayAction);
-        menu->addAction(captureAction);
-
-        menu->exec(QCursor::pos());
-
-        disconnect(fullSrcAction,   SIGNAL(triggered(bool)), this, SLOT(setFullScreen()));
-        disconnect(keepRatioAction, SIGNAL(triggered(bool)), this, SLOT(setKeepRatio()));
-        disconnect(autoPlayAction,  SIGNAL(triggered(bool)), this, SLOT(setAutoPlay()));
-        disconnect(loopPlayAction,  SIGNAL(triggered(bool)), this, SLOT(setLoopPlay()));
-        disconnect(captureAction,       SIGNAL(triggered(bool)), this, SLOT(saveCurrentFrame()));
-
-        delete fullSrcAction;
-        delete keepRatioAction;
-        delete autoPlayAction;
-        delete loopPlayAction;
-        delete captureAction;
-        delete menu;
+        showPlayMenu();
     } else if (event->buttons() == Qt::LeftButton) {
         emit pauseVideo();
     }
@@ -374,23 +327,85 @@ void MainWindow::mouseDoubleClickEvent(QMouseEvent *event)
     }
 }
 
+void MainWindow::showPlayMenu()
+{
+    QMenu *menu = new QMenu;
+
+    QAction * fullSrcAction = new QAction("全屏", this);
+    fullSrcAction->setCheckable(true);
+    if (isFullScreen()) {
+        fullSrcAction->setChecked(true);
+    }
+
+    QAction *keepRatioAction = new QAction("视频长宽比", this);
+    keepRatioAction->setCheckable(true);
+    if (isKeepAspectRatio) {
+        keepRatioAction->setChecked(true);
+    }
+
+    QAction *autoPlayAction = new QAction("连续播放", this);
+    autoPlayAction->setCheckable(true);
+    if (autoPlay) {
+        autoPlayAction->setChecked(true);
+    }
+
+    QAction *loopPlayAction = new QAction("循环播放", this);
+    loopPlayAction->setCheckable(true);
+    if (loopPlay) {
+        loopPlayAction->setChecked(true);
+    }
+
+    QAction *captureAction = new QAction("截图", this);
+
+    connect(fullSrcAction,      SIGNAL(triggered(bool)), this, SLOT(setFullScreen()));
+    connect(keepRatioAction,    SIGNAL(triggered(bool)), this, SLOT(setKeepRatio()));
+    connect(autoPlayAction,     SIGNAL(triggered(bool)), this, SLOT(setAutoPlay()));
+    connect(loopPlayAction,     SIGNAL(triggered(bool)), this, SLOT(setLoopPlay()));
+    connect(captureAction,      SIGNAL(triggered(bool)), this, SLOT(saveCurrentFrame()));
+
+    menu->addAction(fullSrcAction);
+    menu->addAction(keepRatioAction);
+    menu->addAction(autoPlayAction);
+    menu->addAction(loopPlayAction);
+    menu->addAction(captureAction);
+
+    menu->exec(QCursor::pos());
+
+    disconnect(fullSrcAction,   SIGNAL(triggered(bool)), this, SLOT(setFullScreen()));
+    disconnect(keepRatioAction, SIGNAL(triggered(bool)), this, SLOT(setKeepRatio()));
+    disconnect(autoPlayAction,  SIGNAL(triggered(bool)), this, SLOT(setAutoPlay()));
+    disconnect(loopPlayAction,  SIGNAL(triggered(bool)), this, SLOT(setLoopPlay()));
+    disconnect(captureAction,       SIGNAL(triggered(bool)), this, SLOT(saveCurrentFrame()));
+
+    delete fullSrcAction;
+    delete keepRatioAction;
+    delete autoPlayAction;
+    delete loopPlayAction;
+    delete captureAction;
+    delete menu;
+}
+
 void MainWindow::setHide(QWidget *widget)
 {
     hideVector.push_back(widget);
 }
 
-void MainWindow::hideControl()
+void MainWindow::showControl(bool show)
 {
-    for (QWidget *widget : hideVector) {
-        widget->setVisible(false);
+    if (show) {
+        for (QWidget *widget : hideVector) {
+            widget->show();
+        }
+    } else {
+        for (QWidget *widget : hideVector) {
+            widget->hide();
+        }
     }
 }
 
-void MainWindow::showControl()
+inline QString MainWindow::getFilenameFromPath(QString path)
 {
-    for (QWidget *widget : hideVector) {
-        widget->setVisible(true);
-    }
+    return path.right(path.size() - path.lastIndexOf("/") - 1);
 }
 
 QString MainWindow::fileType(QString file)
@@ -411,30 +426,54 @@ void MainWindow::addPathVideoToList(QString path)
 {
     QDir dir(path);
 
-    QRegExp rx(".*\\.(rmvb|flv|mp4|mov|avi|mkv|ts|wav|flac|ape|mp3)$");
+    QRegExp rx(".*\\.(264|rmvb|flv|mp4|mov|avi|mkv|ts|wav|flac|ape|mp3)$");
 
     QFileInfoList list = dir.entryInfoList(QDir::Files);
     for(int i = 0; i < list.count(); i++) {
         QFileInfo fileInfo = list.at(i);
 
         if (rx.exactMatch(fileInfo.fileName())) {
+            QString filename = getFilenameFromPath(fileInfo.fileName());
             /* avoid adding repeat file */
-            if (!playList.contains(fileInfo.absoluteFilePath())) {
+            if (!playList.contains(filename)) {
                 playList.push_back(fileInfo.absoluteFilePath());
             }
         }
     }
 }
 
+void MainWindow::playVideo(QString file)
+{
+    emit stopVideo();
+
+    currentPlay = file;
+    currentPlayType = fileType(file);
+    if (currentPlayType == "video") {
+        menuTimer->start();
+        ui->titleLable->setText("");
+    } else {
+        menuTimer->stop();
+        if (!menuIsVisible) {
+            showControl(true);
+            menuIsVisible = true;
+        }
+        ui->titleLable->setStyleSheet("color:rgb(25, 125, 203);font-size:24px;background: transparent;");
+        ui->titleLable->setText(QString("当前播放：%1").arg(getFilenameFromPath(file)));
+    }
+
+    emit selectedVideoFile(file, currentPlayType);
+}
+
 void MainWindow::playNext()
 {
     int playIndex = 0;
     int videoNum = playList.size();
-    int currentIndex = playList.indexOf(currentPlay);
 
     if (videoNum <= 0) {
         return;
     }
+
+    int currentIndex = playList.indexOf(currentPlay);
 
     if (currentIndex != videoNum - 1) {
         playIndex = currentIndex + 1;
@@ -449,17 +488,7 @@ void MainWindow::playNext()
         return;
     }
 
-    currentPlay = nextVideo;
-    currentPlayType = fileType(nextVideo);
-    if (currentPlayType == "video") {
-        ui->labelTitle->setText("");
-    } else {
-        QString filename = currentPlay.right(currentPlay.size() - currentPlay.lastIndexOf("/") - 1);
-        ui->labelTitle->setStyleSheet("color:rgb(25, 125, 203);font-size:24px;background: transparent;");
-        ui->labelTitle->setText(QString("当前播放：%1").arg(filename));
-    }
-
-    emit selectedVideoFile(nextVideo, currentPlayType);
+    playVideo(nextVideo);
 }
 
 void MainWindow::playPreview()
@@ -491,17 +520,7 @@ void MainWindow::playPreview()
         return;
     }
 
-    currentPlay = preVideo;
-    currentPlayType = fileType(preVideo);
-    if (currentPlayType == "video") {
-        ui->labelTitle->setText("");
-    } else {
-        QString filename = currentPlay.right(currentPlay.size() - currentPlay.lastIndexOf("/") - 1);
-        ui->labelTitle->setStyleSheet("color:rgb(25, 125, 203);font-size:24px;background: transparent;");
-        ui->labelTitle->setText(QString("当前播放：%1").arg(filename));
-    }
-
-    emit selectedVideoFile(preVideo, currentPlayType);
+    playVideo(preVideo);
 }
 
 /******************* slot ************************/
@@ -513,21 +532,9 @@ void MainWindow::buttonClickSlot()
     if (QObject::sender() == ui->btnOpenLocal) { // open local file
         filePath = QFileDialog::getOpenFileName(
                 this, "选择播放文件", "/",
-                "(*.mp4 *.rmvb *.avi *.mov *.flv *.mkv *.ts *.mp3 *.flac *.ape *.wav)");
+                "(*.264 *.mp4 *.rmvb *.avi *.mov *.flv *.mkv *.ts *.mp3 *.flac *.ape *.wav)");
         if (!filePath.isNull() && !filePath.isEmpty()) {
-            emit stopVideo();
-
-            currentPlay = filePath;
-            currentPlayType = fileType(filePath);
-            if (currentPlayType == "video") {
-                ui->labelTitle->setText("");
-            } else {
-                QString filename = currentPlay.right(currentPlay.size() - currentPlay.lastIndexOf("/") - 1);
-                ui->labelTitle->setStyleSheet("color:rgb(25, 125, 203);font-size:24px;background: transparent;");
-                ui->labelTitle->setText(QString("当前播放：%1").arg(filename));
-            }
-
-            emit selectedVideoFile(filePath, currentPlayType);
+            playVideo(filePath);
 
             QString path = filePath.left(filePath.lastIndexOf("/") + 1);
             addPathVideoToList(path);
@@ -543,10 +550,8 @@ void MainWindow::buttonClickSlot()
     } else if (QObject::sender() == ui->btnPause) {
         emit pauseVideo();
     } else if (QObject::sender() == ui->btnPreview) {
-        emit stopVideo();
         playPreview();
     } else if (QObject::sender() == ui->btnNext) {
-        emit stopVideo();
         playNext();
     }
 }
@@ -601,9 +606,11 @@ void MainWindow::saveCurrentFrame()
 void MainWindow::timerSlot()
 {
     if (QObject::sender() == menuTimer) {
-        if (menuIsVisible) {
-            QApplication::setOverrideCursor(Qt::BlankCursor);
-            hideControl();
+        if (menuIsVisible && playState == Decoder::PLAYING) {
+            if (isFullScreen()) {
+                QApplication::setOverrideCursor(Qt::BlankCursor);
+            }
+            showControl(false);
             menuIsVisible = false;
         }
     } else if (QObject::sender() == progressTimer) {
@@ -640,13 +647,6 @@ void MainWindow::editText()
     menuTimer->start();
 }
 
-void MainWindow::showVideo(QImage image)
-{
-    this->image = image;
-
-    update();
-}
-
 void MainWindow::videoTime(qint64 time)
 {
     timeTotal = time / 1000000;
@@ -662,10 +662,14 @@ void MainWindow::videoTime(qint64 time)
                            .arg(sec, 2, 10, QLatin1Char('0')));
 }
 
+void MainWindow::showVideo(QImage image)
+{
+    this->image = image;
+    update();
+}
+
 void MainWindow::playStateChanged(Decoder::PlayState state)
 {
-//    qDebug() << "Get state:" << state;
-
     switch (state) {
     case Decoder::PLAYING:
         ui->btnPause->setIcon(QIcon(":/image/pause.ico"));
@@ -674,12 +678,14 @@ void MainWindow::playStateChanged(Decoder::PlayState state)
         break;
 
     case Decoder::STOP:
+        image = QImage(":/image/MUSIC.jpg");
         ui->btnPause->setIcon(QIcon(":/image/play.ico"));
         playState = Decoder::STOP;
         progressTimer->stop();
         ui->labelTime->setText(QString("00.00.00 / 00:00:00"));
         ui->videoProgressSlider->setValue(0);
         timeTotal = 0;
+        update();
         break;
 
     case Decoder::PAUSE:

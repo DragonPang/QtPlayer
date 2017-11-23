@@ -42,12 +42,6 @@ int AudioDecoder::openAudio(AVFormatContext *pFormatCtx, int index)
     audioSrcChannelLayout = 0;
     audioSrcFreq = 0;
 
-    audioBufIndex = 0;
-    audioBufSize = 0;
-    audioBufSize1 = 0;
-
-    clock = 0;
-
     pFormatCtx->streams[index]->discard = AVDISCARD_DEFAULT;
 
     stream = pFormatCtx->streams[index];
@@ -179,7 +173,7 @@ int AudioDecoder::openAudio(AVFormatContext *pFormatCtx, int index)
 
 void AudioDecoder::closeAudio()
 {
-    emptyQueue();
+    emptyAudioData();
 
     SDL_LockAudio();
     SDL_CloseAudio();
@@ -209,8 +203,18 @@ void AudioDecoder::packetEnqueue(AVPacket *packet)
     packetQueue.enqueue(packet);
 }
 
-void AudioDecoder::emptyQueue()
+void AudioDecoder::emptyAudioData()
 {
+    audioBuf = nullptr;
+
+    audioBufIndex = 0;
+    audioBufSize = 0;
+    audioBufSize1 = 0;
+
+    clock = 0;
+
+    sendReturn = 0;
+
     packetQueue.empty();
 }
 

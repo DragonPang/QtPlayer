@@ -45,6 +45,8 @@ void Decoder::clearData()
 
     videoQueue.empty();
 
+    audioDecoder->emptyAudioData();
+
     videoClk = 0;
 }
 
@@ -177,6 +179,8 @@ void Decoder::decoderFile(QString file, QString type)
 
     clearData();
 
+    SDL_Delay(100);
+
     currentFile = file;
     currentType = type;
 
@@ -195,6 +199,7 @@ void Decoder::audioFinished()
 void Decoder::stopVideo()
 {
     if (playState == STOP) {
+        setPlayState(Decoder::STOP);
         return;
     }
 
@@ -528,7 +533,7 @@ seek:
                 qDebug() << "Seek failed.";
 
             } else {
-                audioDecoder->emptyQueue();
+                audioDecoder->emptyAudioData();
                 audioDecoder->packetEnqueue(&seekPacket);
 
                 if (currentType == "video") {

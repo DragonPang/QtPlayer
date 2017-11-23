@@ -39,12 +39,15 @@ private:
 
     QString fileType(QString file);
     void addPathVideoToList(QString path);
+    void playVideo(QString file);
     void playNext();
     void playPreview();
+    void showPlayMenu();
 
     void setHide(QWidget *widget);
-    void hideControl();
-    void showControl();
+    void showControl(bool show);
+
+    inline QString getFilenameFromPath(QString path);
 
     Ui::MainWindow *ui;
 
@@ -54,12 +57,13 @@ private:
     QString currentPlay;        // current playing video file path
     QString currentPlayType;
 
-    QImage image;
     QTimer *menuTimer;      // menu hide timer
     QTimer *progressTimer;  // check play progress timer
 
     bool menuIsVisible;     // switch to control show/hide menu
     bool isKeepAspectRatio; // switch to control image scale whether keep aspect ratio
+
+    QImage image;
 
     bool autoPlay;          // switch to control whether to continue to playing other file
     bool loopPlay;          // switch to control whether to continue to playing same file
@@ -78,7 +82,6 @@ private slots:
     void trayIconActivated(QSystemTrayIcon::ActivationReason reason);
     void timerSlot();
     void editText();
-    void showVideo(QImage image);
     void seekProgress(int value);
     void videoTime(qint64 time);
     void playStateChanged(Decoder::PlayState state);
@@ -89,6 +92,8 @@ private slots:
     void setAutoPlay();
     void setLoopPlay();
     void saveCurrentFrame();
+
+    void showVideo(QImage);
 
 signals:
     void selectedVideoFile(QString file, QString type);

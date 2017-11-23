@@ -18,7 +18,6 @@ extern "C"
 }
 
 #include "audiodecoder.h"
-#include "videodecoder.h"
 
 class Decoder : public QThread
 {

@@ -24,7 +24,7 @@ public:
     void setVolume(int volume);
     double getAudioClock();
     void packetEnqueue(AVPacket *packet);
-    void emptyQueue();
+    void emptyAudioData();
     void setTotalTime(qint64 time);
 
 private:

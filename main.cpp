@@ -1,6 +1,8 @@
-#include "mainwindow.h"
 #include <QApplication>
 #include <QTextCodec>
+
+#include "mainwindow.h"
+
 
 int main(int argc, char *argv[])
 {
@@ -17,3 +19,7 @@ int main(int argc, char *argv[])
 
     return a.exec();
 }
+
+
+
+
