@@ -28,8 +28,7 @@ SOURCES += \
         mainwindow.cpp \
     avpacketqueue.cpp \
     decoder.cpp \
-    audiodecoder.cpp \
-    videodecoder.cpp
+    audiodecoder.cpp 
 
 INCLUDEPATH += $$PWD/ffmpeg/include \
                 $$PWD/sdl/include
@@ -48,8 +47,7 @@ HEADERS += \
         mainwindow.h \
     avpacketqueue.h \
     decoder.h \
-    audiodecoder.h \
-    videodecoder.h
+    audiodecoder.h 
 
 FORMS += \
         mainwindow.ui
